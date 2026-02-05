@@ -268,3 +268,87 @@ Example Error Response:
 
 ### Reflection
 Consistent validation logic ensures data integrity and reduces "schema drift." Standardized error envelopes improve the debugging experience and allow for universal error handling on the frontend.
+
+## Authentication & Authorization
+
+### Overview
+Securely verify user identity using password hashing and token-based authentication.
+
+### Flow Diagram
+1. **Signup**: User inputs credentials -> Password hashed with `bcrypt` -> User record created in DB.
+2. **Login**: User inputs credentials -> Password compared using `bcrypt` -> JWT generated -> Token returned to user.
+3. **Protected Access**: User provides JWT in `Authorization` header -> Token verified -> Access granted to sensitive data.
+
+### Sample Requests & Responses
+
+#### Signup (POST /api/auth/signup)
+**Request Body:**
+```json
+{
+  "name": "Alice",
+  "email": "alice@example.com",
+  "password": "mypassword"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Signup successful",
+  "user": {
+    "id": 1,
+    "name": "Alice",
+    "email": "alice@example.com",
+    "createdAt": "2026-02-05T16:45:00.000Z"
+  }
+}
+```
+
+#### Login (POST /api/auth/login)
+**Request Body:**
+```json
+{
+  "email": "alice@example.com",
+  "password": "mypassword"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+#### Protected User Route (GET /api/users)
+**Headers:**
+`Authorization: Bearer <JWT_TOKEN>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Protected data",
+  "user": {
+    "id": 1,
+    "email": "alice@example.com",
+    "iat": 1738753200,
+    "exp": 1738756800
+  }
+}
+```
+
+### Security Considerations
+
+#### Password Hashing
+We use `bcrypt` with 10 salt rounds. This ensures that even if the database is leaked, the original passwords are computationally expensive to recover.
+
+#### JWT Token Generation
+Tokens are signed with a secret key (`JWT_SECRET`) and include user identification. They are set to expire in 1 hour by default to minimize the impact of token theft.
+
+#### Discussions
+- **Token Expiry**: Setting a short expiry (e.g., 1 hour) is a balance between security and user convenience. 
+- **Token Storage**: It is highly recommended to store the JWT in an `HttpOnly` cookie to prevent access via JavaScript (XSS protection). Using `localStorage` is easier to implement but more vulnerable.
+- **Refresh Strategies**: For production, implementing "Refresh Tokens" would allow for longer sessions without compromising security. Refresh tokens should be stored securely and used to issue new access tokens when they expire.
+
