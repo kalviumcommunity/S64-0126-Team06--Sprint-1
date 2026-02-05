@@ -27,6 +27,8 @@ model Project {
   userId      Int
   user        User     @relation(fields: [userId], references: [id])
   tasks       Task[]
+
+  @@index([userId])
 }
 
 model Task {
@@ -40,4 +42,8 @@ model Task {
   project          Project  @relation(fields: [projectId], references: [id])
   assignedToUserId Int?
   assignedTo       User?    @relation("UserTasks", fields: [assignedToUserId], references: [id])
+
+  @@index([projectId])
+  @@index([assignedToUserId])
+  @@index([status])
 }
