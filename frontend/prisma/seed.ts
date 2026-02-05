@@ -3,37 +3,79 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    // Create a user
-    const user = await prisma.user.upsert({
-        where: { email: 'test@example.com' },
+    console.log('Start seeding ...')
+
+    // Create Users
+    const alice = await prisma.user.upsert({
+        where: { email: 'alice@example.com' },
         update: {},
         create: {
-            email: 'test@example.com',
-            name: 'Test User',
+            email: 'alice@example.com',
+            name: 'Alice',
             projects: {
                 create: {
-                    name: 'My First Project',
-                    description: 'This is a sample project',
+                    name: 'Website Redesign',
+                    description: 'Redesigning the company landing page',
                     tasks: {
                         create: [
                             {
-                                title: 'Task 1',
-                                status: 'TODO',
-                                priority: 'High'
+                                title: 'Design Mockups',
+                                description: 'Create Figma mockups for desktop and mobile',
+                                status: 'IN_PROGRESS',
+                                priority: 'HIGH',
                             },
                             {
-                                title: 'Task 2',
-                                status: 'IN_PROGRESS',
-                                priority: 'Medium'
-                            }
-                        ]
-                    }
-                }
-            }
+                                title: 'Implement Frontend',
+                                description: 'Build components using Next.js',
+                                status: 'TODO',
+                                priority: 'HIGH',
+                            },
+                        ],
+                    },
+                },
+            },
         },
     })
 
-    console.log({ user })
+    const bob = await prisma.user.upsert({
+        where: { email: 'bob@example.com' },
+        update: {},
+        create: {
+            email: 'bob@example.com',
+            name: 'Bob',
+            projects: {
+                create: {
+                    name: 'Mobile App',
+                    description: 'Native mobile application development',
+                    tasks: {
+                        create: {
+                            title: 'Setup React Native',
+                            status: 'DONE',
+                            priority: 'MEDIUM',
+                        },
+                    },
+                },
+            },
+        },
+    })
+
+    // Assign a task to Bob from Alice's project (demonstrating relations)
+    const aliceProject = await prisma.project.findFirst({
+        where: { userId: alice.id },
+        include: { tasks: true }
+    })
+
+    if (aliceProject && aliceProject.tasks.length > 0) {
+        await prisma.task.update({
+            where: { id: aliceProject.tasks[1].id }, // 'Implement Frontend'
+            data: {
+                assignedToUserId: bob.id
+            }
+        })
+    }
+
+    console.log({ alice, bob })
+    console.log('Seeding finished.')
 }
 
 main()
