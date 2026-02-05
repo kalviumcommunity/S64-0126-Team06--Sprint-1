@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { sendSuccess, sendError } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { userSchema } from '@/lib/schemas/userSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '@/lib/zodErrorHandler';
 
 export async function GET(req: Request) {
     try {
@@ -35,14 +38,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { name, email } = body;
-
-        if (!name || !email) {
-            return sendError('Missing required fields', ERROR_CODES.VALIDATION_ERROR, 400);
-        }
+        const validatedData = userSchema.parse(body);
 
         const existingUser = await prisma.user.findUnique({
-            where: { email },
+            where: { email: validatedData.email },
         });
 
         if (existingUser) {
@@ -50,11 +49,19 @@ export async function POST(req: Request) {
         }
 
         const user = await prisma.user.create({
-            data: { name, email },
+            data: validatedData,
         });
 
         return sendSuccess(user, 'User created successfully', 201);
     } catch (error) {
+        if (error instanceof ZodError) {
+            return sendError(
+                'Validation Error',
+                ERROR_CODES.VALIDATION_ERROR,
+                400,
+                formatZodError(error)
+            );
+        }
         console.error('Error creating user:', error);
         return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }

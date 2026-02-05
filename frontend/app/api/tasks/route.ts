@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { sendSuccess, sendError } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { taskSchema } from '@/lib/schemas/taskSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '@/lib/zodErrorHandler';
 
 export async function GET(req: Request) {
     try {
@@ -41,26 +44,22 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { title, description, status, priority, dueDate, projectId, assignedToUserId } = body;
-
-        if (!title || !projectId) {
-            return sendError('Missing required fields', ERROR_CODES.VALIDATION_ERROR, 400);
-        }
+        const validatedData = taskSchema.parse(body);
 
         const task = await prisma.task.create({
-            data: {
-                title,
-                description,
-                status: status || 'TODO',
-                priority,
-                dueDate: dueDate ? new Date(dueDate) : null,
-                projectId: Number(projectId),
-                assignedToUserId: assignedToUserId ? Number(assignedToUserId) : null
-            },
+            data: validatedData,
         });
 
         return sendSuccess(task, 'Task created successfully', 201);
     } catch (error) {
+        if (error instanceof ZodError) {
+            return sendError(
+                'Validation Error',
+                ERROR_CODES.VALIDATION_ERROR,
+                400,
+                formatZodError(error)
+            );
+        }
         console.error('Error creating task:', error);
         return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }

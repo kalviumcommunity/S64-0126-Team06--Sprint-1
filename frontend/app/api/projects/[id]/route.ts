@@ -1,14 +1,18 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendSuccess, sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
+import { projectSchema } from '@/lib/schemas/projectSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '@/lib/zodErrorHandler';
 
 export async function GET(
-    req: Request,
+    _req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
         const id = Number(params.id);
         if (isNaN(id)) {
-            return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+            return sendError('Invalid ID', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         const project = await prisma.project.findUnique({
@@ -22,13 +26,13 @@ export async function GET(
         });
 
         if (!project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+            return sendError('Project not found', ERROR_CODES.NOT_FOUND, 404);
         }
 
-        return NextResponse.json(project);
+        return sendSuccess(project, 'Project fetched successfully');
     } catch (error) {
         console.error('Error fetching project:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
 
@@ -39,45 +43,49 @@ export async function PUT(
     try {
         const id = Number(params.id);
         if (isNaN(id)) {
-            return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+            return sendError('Invalid ID', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         const body = await req.json();
-        const { name, description, userId } = body;
+        const validatedData = projectSchema.partial().parse(body);
 
         const project = await prisma.project.update({
             where: { id },
-            data: {
-                name,
-                description,
-                userId: userId ? Number(userId) : undefined
-            },
+            data: validatedData,
         });
 
-        return NextResponse.json(project);
+        return sendSuccess(project, 'Project updated successfully');
     } catch (error) {
+        if (error instanceof ZodError) {
+            return sendError(
+                'Validation Error',
+                ERROR_CODES.VALIDATION_ERROR,
+                400,
+                formatZodError(error)
+            );
+        }
         console.error('Error updating project:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
 
 export async function DELETE(
-    req: Request,
+    _req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
         const id = Number(params.id);
         if (isNaN(id)) {
-            return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+            return sendError('Invalid ID', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         await prisma.project.delete({
             where: { id },
         });
 
-        return NextResponse.json({ message: 'Project deleted successfully' });
+        return sendSuccess({ id }, 'Project deleted successfully');
     } catch (error) {
         console.error('Error deleting project:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
