@@ -207,3 +207,64 @@ By implementing a unified response envelope, we've achieved several key benefits
 2.  **Simplified Frontend Logic**: Universal error handling can be implemented (e.g., in an Axios interceptor) to catch any response where `success: false`.
 3.  **Better Debugging**: Every error response includes a specific error code and a timestamp, making it easier to trace issues in logs.
 4.  **Consistency**: No matter who writes a new endpoint, it speaks the same "API voice," maintaining the integrity of the system's design.
+
+## Input Validation with Zod
+
+By integrating Zod into our Next.js API routes, we ensure that every endpoint trusts but verifies the data it receives. This builds safer and more reliable endpoints that fail gracefully and communicate clearly with the client.
+
+### Key Benefits
+- **Type Safety**: Automatic TypeScript inference from schemas.
+- **Clear Errors**: Standardized, descriptive error messages for validation failures.
+- **Consistency**: Shared schemas between client and server.
+- **Improved UX**: Detailed field-level feedback for frontend forms.
+
+### Schema Definitions
+We use shared schemas located in `lib/schemas/`.
+
+#### User Schema
+```typescript
+export const userSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters long"),
+  email: z.string().email("Invalid email address"),
+});
+```
+
+#### Project Schema
+```typescript
+export const projectSchema = z.object({
+  name: z.string().min(2, "Project name must be at least 2 characters long"),
+  description: z.string().optional().nullable(),
+  userId: z.union([z.number(), z.string().regex(/^\d+$/).transform(Number)]),
+});
+```
+
+#### Task Schema
+```typescript
+export const taskSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).default("TODO"),
+  projectId: z.union([z.number(), z.string().regex(/^\d+$/).transform(Number)]),
+});
+```
+
+### Error Handling
+Validation errors are caught and formatted using `formatZodError` in `lib/zodErrorHandler.ts`.
+
+Example Error Response:
+```json
+{
+  "success": false,
+  "message": "Validation Error",
+  "error": {
+    "code": "E001",
+    "details": [
+      { "field": "email", "message": "Invalid email address" }
+    ]
+  },
+  "timestamp": "2026-02-05T16:30:00.000Z"
+}
+```
+
+### Reflection
+Consistent validation logic ensures data integrity and reduces "schema drift." Standardized error envelopes improve the debugging experience and allow for universal error handling on the frontend.
