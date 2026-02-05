@@ -121,30 +121,89 @@ All API endpoints are prefixed with `/api`.
 | PUT | UPDATE | `/api/users/1` | Update user by ID |
 | DELETE | DELETE | `/api/users/1` | Delete user by ID |
 
-### Pagination & Error Semantics
+### Unified Response Envelope
+Every endpoint in this API follows a common response format to ensure predictability and ease of handling for frontend developers.
+
+**Success Response Format:**
+```json
+{
+  "success": true,
+  "message": "Success message",
+  "data": { ... },
+  "timestamp": "2025-10-30T10:00:00Z"
+}
+```
+
+**Error Response Format:**
+```json
+{
+  "success": false,
+  "message": "Error message",
+  "error": {
+    "code": "ERROR_CODE",
+    "details": { ... }
+  },
+  "timestamp": "2025-10-30T10:00:00Z"
+}
+```
+
+### Error Codes
+A dictionary of standardized error codes is maintained for consistency:
+
+| Code | Label | Description |
+| :--- | :--- | :--- |
+| `E001` | `VALIDATION_ERROR` | Missing required fields or invalid input |
+| `E002` | `NOT_FOUND` | Resource not found |
+| `E003` | `DATABASE_FAILURE` | Issues related to database operations |
+| `E500` | `INTERNAL_ERROR` | Unexpected server errors |
+
+### Pagination & Response Semantics
 -   **Pagination**: GET requests for collections support `page` and `limit` query parameters.
     -   Example: `/api/users?page=1&limit=10`
-    -   Response includes a `meta` object with `total`, `page`, `limit`, and `totalPages`.
--   **Error Handling**: Standard HTTP status codes are used:
-    -   `200 OK`: Successful request.
-    -   `201 Created`: Successful creation.
-    -   `400 Bad Request`: Missing fields or validation errors.
-    -   `404 Not Found`: Resource not found.
-    -   `500 Internal Server Error`: Unexpected server error.
+    -   The `data` object in the success response will contain both the collection and the metadata.
+-   **Unified Handling**: Utilities in `lib/responseHandler.ts` are used to send responses consistently.
+    -   `sendSuccess(data, message, status)`
+    -   `sendError(message, code, status, details)`
 
-### Sample Requests (curl)
+### Sample Responses
 
-**Create a User:**
-```bash
-curl -X POST http://localhost:3000/api/users \
-     -H "Content-Type: application/json" \
-     -d '{"name": "John Doe", "email": "john@example.com"}'
+**Success (GET /api/users):**
+```json
+{
+  "success": true,
+  "message": "Users fetched successfully",
+  "data": {
+    "data": [
+      { "id": 1, "name": "Alice", "email": "alice@example.com" },
+      { "id": 2, "name": "Bob", "email": "bob@example.com" }
+    ],
+    "meta": {
+      "total": 2,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 1
+    }
+  },
+  "timestamp": "2026-02-05T10:00:00.000Z"
+}
 ```
 
-**Get Projects with Pagination:**
-```bash
-curl -X GET "http://localhost:3000/api/projects?page=1&limit=5"
+**Error (Missing Field):**
+```json
+{
+  "success": false,
+  "message": "Missing required fields",
+  "error": {
+    "code": "E001",
+    "details": null
+  },
+  "timestamp": "2026-02-05T10:00:00.000Z"
+}
 ```
 
-### Reflection: Naming Consistency & Maintainability
-Using a consistent, pluralized naming convention (e.g., `/api/users` instead of `/api/getUser`) combined with standard HTTP verbs makes the API intuitive and self-documenting. This reduces the cognitive load for developers integrating with the API and minimizes errors caused by naming mismatches. Standardizing error responses and pagination ensures a predictable interface for client-side applications.
+### Reflection: Developer Experience & Observability
+By implementing a unified response envelope, we've achieved several key benefits:
+1.  **Predictability**: Frontend developers no longer need to guess the shape of the data. All responses have the same top-level structure.
+2.  **Simplified Frontend Logic**: Universal error handling can be implemented (e.g., in an Axios interceptor) to catch any response where `success: false`.
+3.  **Better Debugging**: Every error response includes a specific error code and a timestamp, making it easier to trace issues in logs.
+4.  **Consistency**: No matter who writes a new endpoint, it speaks the same "API voice," maintaining the integrity of the system's design.

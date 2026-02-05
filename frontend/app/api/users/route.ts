@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendSuccess, sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 export async function GET(req: Request) {
     try {
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
 
         const total = await prisma.user.count();
 
-        return NextResponse.json({
+        return sendSuccess({
             data: users,
             meta: {
                 total,
@@ -24,10 +25,10 @@ export async function GET(req: Request) {
                 limit,
                 totalPages: Math.ceil(total / limit),
             },
-        });
+        }, 'Users fetched successfully');
     } catch (error) {
         console.error('Error fetching users:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
 
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         const { name, email } = body;
 
         if (!name || !email) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return sendError('Missing required fields', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -45,16 +46,16 @@ export async function POST(req: Request) {
         });
 
         if (existingUser) {
-            return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
+            return sendError('User with this email already exists', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         const user = await prisma.user.create({
             data: { name, email },
         });
 
-        return NextResponse.json(user, { status: 201 });
+        return sendSuccess(user, 'User created successfully', 201);
     } catch (error) {
         console.error('Error creating user:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
