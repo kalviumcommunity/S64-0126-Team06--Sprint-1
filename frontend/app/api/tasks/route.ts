@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendSuccess, sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 export async function GET(req: Request) {
     try {
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
 
         const total = await prisma.task.count();
 
-        return NextResponse.json({
+        return sendSuccess({
             data: tasks,
             meta: {
                 total,
@@ -30,10 +31,10 @@ export async function GET(req: Request) {
                 limit,
                 totalPages: Math.ceil(total / limit),
             },
-        });
+        }, 'Tasks fetched successfully');
     } catch (error) {
         console.error('Error fetching tasks:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         const { title, description, status, priority, dueDate, projectId, assignedToUserId } = body;
 
         if (!title || !projectId) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return sendError('Missing required fields', ERROR_CODES.VALIDATION_ERROR, 400);
         }
 
         const task = await prisma.task.create({
@@ -58,9 +59,9 @@ export async function POST(req: Request) {
             },
         });
 
-        return NextResponse.json(task, { status: 201 });
+        return sendSuccess(task, 'Task created successfully', 201);
     } catch (error) {
         console.error('Error creating task:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return sendError('Internal Server Error', ERROR_CODES.INTERNAL_ERROR, 500, error);
     }
 }
