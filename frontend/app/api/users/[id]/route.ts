@@ -5,6 +5,7 @@ import { userSchema } from '@/lib/schemas/userSchema';
 import { ZodError } from 'zod';
 import { formatZodError } from '@/lib/zodErrorHandler';
 
+
 export async function GET(
     req: Request,
     { params }: { params: { id: string } }
