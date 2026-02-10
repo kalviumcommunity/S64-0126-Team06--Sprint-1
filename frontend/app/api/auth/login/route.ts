@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 
+
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 export async function POST(req: Request) {
@@ -17,15 +18,18 @@ export async function POST(req: Request) {
         if (!isPasswordValid)
             return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 });
 
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });
-
-        return NextResponse.json({
-            success: true,
-            message: "Login successful",
-            token,
-        });
-    } catch (error) {
+  const token = jwt.sign(
+  {
+    id: user.id,
+    email: user.email,
+    role: user.role
+  },
+  JWT_SECRET,
+  { expiresIn: "1h" }
+);
+        return NextResponse.json({ success: true, message: "Login successful", token });
+    } catch (error) {                                                                   
         console.error("Login error:", error);
-        return NextResponse.json({ success: false, message: "Login failed", error }, { status: 500 });
-    }
+        return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
+    }       
 }
