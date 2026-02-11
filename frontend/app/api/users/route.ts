@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import redis from "@/lib/redis";
 
-export async function GET(req: Request) {
-  const role = req.headers.get("x-user-role");
+export async function GET() {
+  try {
+    const cacheKey = "users:list";
 
-  if (!role) {
+    const cachedUsers = await redis.get(cacheKey);
+
+    if (cachedUsers) {
+      console.log("Cache Hit");
+      return NextResponse.json(JSON.parse(cachedUsers));
+    }
+
+    console.log("Cache Miss - Fetching from DB");
+    const users = await prisma.user.findMany();
+
+    // Cache for 60 seconds
+    await redis.set(cacheKey, JSON.stringify(users), "EX", 60);
+
+    return NextResponse.json(users);
+  } catch (error) {
     return NextResponse.json(
-      { success: false, message: "Unauthorized access" },
-      { status: 401 }
+      { success: false, message: "Failed to fetch users" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    success: true,
-    message: "User route accessible to authenticated users",
-    role,
-  });
 }
