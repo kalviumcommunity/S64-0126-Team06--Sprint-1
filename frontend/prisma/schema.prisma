@@ -47,3 +47,11 @@ model Task {
   @@index([assignedToUserId])
   @@index([status])
 }
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  size      Int
+  createdAt DateTime @default(now())
+}
